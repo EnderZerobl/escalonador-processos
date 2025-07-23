@@ -334,7 +334,7 @@ class EscalonadorPrioridadeNP(EscalonadorCAV):
                 if (len(tarefas_que_chegaram) == 0):
                     self.tempo_atual += 1
                     continue
-                tarefas_que_chegaram.sort(key=lambda tarefa: tarefa.prioridade)
+                tarefas_que_chegaram.sort(key=lambda tarefa: tarefa.prioridade, reverse=True)
                 
                 tarefa = tarefas_que_chegaram[0]
                 fila.remove(tarefa)
