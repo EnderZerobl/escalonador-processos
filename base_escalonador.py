@@ -1,9 +1,11 @@
+import pandas as pd
 import random
 import time
 from collections import deque
 from abc import ABC, abstractmethod
 import math
 from copy import deepcopy
+import matplotlib.pyplot as plt
 
 #Atual
 
@@ -111,6 +113,16 @@ class EscalonadorCAV(ABC):
                 tempos_de_turnaround.append(turnaround)
         if tempos_de_turnaround:
             return sum(tempos_de_turnaround) / len(tempos_de_turnaround)
+        return None
+    
+    def calcular_tempo_em_espera_medio(self):
+        tempos_de_espera = []
+        for tarefa in self.tarefas:
+            if tarefa.tempo_final != None:  # Calcula apenas para self.tarefas que foram concluídas
+                espera = tarefa.tempo_final - tarefa.tempo_chegada - tarefa.duracao
+                tempos_de_espera.append(espera)
+        if tempos_de_espera:
+            return sum(tempos_de_espera) / len(tempos_de_espera)
         return None
 
 # A classe base Escalonador define a estrutura para os escalonadores, incluindo um método escalonar
@@ -508,207 +520,207 @@ class EscalonadorUG(EscalonadorCAV):
 
         self.exibir_sobrecarga()
 
-# class EscalonadorFutureVision(EscalonadorCAV):
-#     def __init__(self, quantum):
-#         super().__init__()
-#         self.quantum = quantum
+class EscalonadorFutureVision(EscalonadorCAV):
+    def __init__(self, quantum):
+        super().__init__()
+        self.quantum = quantum
 
-#     def limite(self, tarefas_que_chegaram):
-#         if (len(tarefas_que_chegaram) > 0):
-#             duracao_total = 0
-#             mediana_chegada = 0
+    def limite(self, tarefas_que_chegaram):
+        if (len(tarefas_que_chegaram) > 0):
+            duracao_total = 0
+            mediana_chegada = 0
 
-#             if (len(tarefas_que_chegaram) % 2 == 0):
-#                 mediana_chegada = (tarefas_que_chegaram[len(tarefas_que_chegaram) // 2 - 1].tempo_chegada + tarefas_que_chegaram[len(tarefas_que_chegaram) // 2].tempo_chegada) / 2
-#             else:
-#                 mediana_chegada = tarefas_que_chegaram[len(tarefas_que_chegaram) // 2].tempo_chegada
+            if (len(tarefas_que_chegaram) % 2 == 0):
+                mediana_chegada = (tarefas_que_chegaram[len(tarefas_que_chegaram) // 2 - 1].tempo_chegada + tarefas_que_chegaram[len(tarefas_que_chegaram) // 2].tempo_chegada) / 2
+            else:
+                mediana_chegada = tarefas_que_chegaram[len(tarefas_que_chegaram) // 2].tempo_chegada
 
             
 
-#             for tarefa in tarefas_que_chegaram: 
-#                 duracao_total += tarefa.tempo_restante
+            for tarefa in tarefas_que_chegaram: 
+                duracao_total += tarefa.tempo_restante
 
-#             duracao_media = duracao_total/len(tarefas_que_chegaram)
-#             lim_espera = duracao_media + mediana_chegada
-#             return lim_espera
-#         return 0
+            duracao_media = duracao_total/len(tarefas_que_chegaram)
+            lim_espera = duracao_media + mediana_chegada
+            return lim_espera
+        return 0
 
-#     def escalonar(self):
-#         """Escalonamento Round Robin com tarefas de CAVs"""
-#         self.tarefas.sort(key=lambda tarefa: tarefa.tempo_chegada)
-#         fila = deque(self.tarefas)
+    def escalonar(self):
+        """Escalonamento Round Robin com tarefas de CAVs"""
+        self.tarefas.sort(key=lambda tarefa: tarefa.tempo_chegada)
+        fila = deque(self.tarefas)
         
-#         if (len(self.tarefas) > 0):
-#             self.tempo_atual = self.tarefas[0].tempo_chegada
+        if (len(self.tarefas) > 0):
+            self.tempo_atual = self.tarefas[0].tempo_chegada
             
-#             while fila:
-#                 tarefas_que_chegaram = [tarefa for tarefa in fila if tarefa.tempo_chegada <= self.tempo_atual]
-#                 if (len(tarefas_que_chegaram) == 0):
-#                     self.tempo_atual = math.ceil(self.tempo_atual + 1)
-#                     continue
+            while fila:
+                tarefas_que_chegaram = [tarefa for tarefa in fila if tarefa.tempo_chegada <= self.tempo_atual]
+                if (len(tarefas_que_chegaram) == 0):
+                    self.tempo_atual = math.ceil(self.tempo_atual + 1)
+                    continue
                 
-#                 tarefas_que_chegaram.sort(key=lambda tarefa: tarefa.tempo_restante)
-#                 tarefa = tarefas_que_chegaram[0]
-#                 tarefa_maior_que_limite = None
+                tarefas_que_chegaram.sort(key=lambda tarefa: tarefa.tempo_restante)
+                tarefa = tarefas_que_chegaram[0]
+                tarefa_maior_que_limite = None
                 
                 
                 
-#                 for t in tarefas_que_chegaram:
-#                     tempo_aguardando = self.tempo_atual - t.tempo_final_execucao_atual if (
-#                         t.tempo_final_execucao_atual is not None) else self.tempo_atual - t.tempo_chegada
-#                     if tempo_aguardando > self.limite(tarefas_que_chegaram):
-#                         tarefa_maior_que_limite = t
-#                         break
-#                 if tarefa_maior_que_limite is not None:
-#                     tarefa = tarefa_maior_que_limite
+                for t in tarefas_que_chegaram:
+                    tempo_aguardando = self.tempo_atual - t.tempo_final_execucao_atual if (
+                        t.tempo_final_execucao_atual is not None) else self.tempo_atual - t.tempo_chegada
+                    if tempo_aguardando > self.limite(tarefas_que_chegaram):
+                        tarefa_maior_que_limite = t
+                        break
+                if tarefa_maior_que_limite is not None:
+                    tarefa = tarefa_maior_que_limite
                     
-#                 fila.remove(tarefa)
+                fila.remove(tarefa)
 
-#                 if tarefa.tempo_restante > 0:
-#                     tempo_aguardando = self.tempo_atual - tarefa.tempo_final_execucao_atual if (
-#                         tarefa.tempo_final_execucao_atual is not None) else (tarefa.tempo_de_resposta if tarefa.tempo_de_resposta is not None else self.tempo_atual - tarefa.tempo_chegada)
-#                     tarefa.tempo_inicio_execucao_atual = max(self.tempo_atual, tarefa.tempo_chegada)
+                if tarefa.tempo_restante > 0:
+                    tempo_aguardando = self.tempo_atual - tarefa.tempo_final_execucao_atual if (
+                        tarefa.tempo_final_execucao_atual is not None) else (tarefa.tempo_de_resposta if tarefa.tempo_de_resposta is not None else self.tempo_atual - tarefa.tempo_chegada)
+                    tarefa.tempo_inicio_execucao_atual = max(self.tempo_atual, tarefa.tempo_chegada)
                     
-#                     tarefa.tempo_inicio = tarefa.tempo_inicio_execucao_atual if tarefa.tempo_inicio is None else tarefa.tempo_inicio
-#                     tempo_exec = min(tarefa.tempo_restante, self.quantum)
+                    tarefa.tempo_inicio = tarefa.tempo_inicio_execucao_atual if tarefa.tempo_inicio is None else tarefa.tempo_inicio
+                    tempo_exec = min(tarefa.tempo_restante, self.quantum)
                     
-#                     tarefa.tempo_em_espera += tarefa.tempo_inicio_execucao_atual - (tarefa.tempo_final_execucao_atual if tarefa.tempo_final_execucao_atual is not None else 0)
+                    tarefa.tempo_em_espera += tarefa.tempo_inicio_execucao_atual - (tarefa.tempo_final_execucao_atual if tarefa.tempo_final_execucao_atual is not None else 0)
                     
-#                     # print(f"[{self.tempo_atual}s] Executando tarefa {tarefa.nome} de {tarefa.duracao} segundos por {tempo_exec} segundos. (chegada: {tarefa.tempo_chegada}s, limite de espera: {self.limite(tarefas_que_chegaram)}s, tempo_espera: { (tempo_aguardando)}s)")
+                    # print(f"[{self.tempo_atual}s] Executando tarefa {tarefa.nome} de {tarefa.duracao} segundos por {tempo_exec} segundos. (chegada: {tarefa.tempo_chegada}s, limite de espera: {self.limite(tarefas_que_chegaram)}s, tempo_espera: { (tempo_aguardando)}s)")
                     
-#                     # time.sleep(tempo_exec / 10)  # Simula a execução da tarefa 10x mais rapida
-                    
-                    
-                    
-#                     self.tempo_atual = tarefa.tempo_inicio_execucao_atual + tempo_exec
-#                     tarefa.tempo_final_execucao_atual = self.tempo_atual
-#                     tarefa.tempos_execucao.append((tarefa.tempo_inicio_execucao_atual, tarefa.tempo_final_execucao_atual))
-#                     tarefa.tempo_restante -= tempo_exec
-                    
-#                     tarefa.tempo_de_resposta = tarefa.tempo_inicio - tarefa.tempo_chegada
+                    # time.sleep(tempo_exec / 10)  # Simula a execução da tarefa 10x mais rapida
                     
                     
                     
-#                     if tarefa.tempo_restante > 0:
-#                         # Registrando a sobrecarga, como exemplo, podemos adicionar um tempo fixo de sobrecarga
-#                         self.registrar_sobrecarga(0.3)  # 0.3 segundos de sobrecarga por tarefa
-#                         self.tempo_atual += 0.3
+                    self.tempo_atual = tarefa.tempo_inicio_execucao_atual + tempo_exec
+                    tarefa.tempo_final_execucao_atual = self.tempo_atual
+                    tarefa.tempos_execucao.append((tarefa.tempo_inicio_execucao_atual, tarefa.tempo_final_execucao_atual))
+                    tarefa.tempo_restante -= tempo_exec
+                    
+                    tarefa.tempo_de_resposta = tarefa.tempo_inicio - tarefa.tempo_chegada
+                    
+                    
+                    
+                    if tarefa.tempo_restante > 0:
+                        # Registrando a sobrecarga, como exemplo, podemos adicionar um tempo fixo de sobrecarga
+                        self.registrar_sobrecarga(0.3)  # 0.3 segundos de sobrecarga por tarefa
+                        self.tempo_atual += 0.3
                         
-#                         if (fila):
-#                             for i in range(len(fila)):
-#                                 if (fila[i].tempo_chegada > self.tempo_atual):
-#                                     fila.insert(i, tarefa)
-#                                     break
-#                                 if (i == len(fila) - 1):
-#                                     fila.append(tarefa)
-#                         else:
-#                             fila.append(tarefa)
+                        if (fila):
+                            for i in range(len(fila)):
+                                if (fila[i].tempo_chegada > self.tempo_atual):
+                                    fila.insert(i, tarefa)
+                                    break
+                                if (i == len(fila) - 1):
+                                    fila.append(tarefa)
+                        else:
+                            fila.append(tarefa)
                         
-#                         # print(f"[{self.tempo_atual}s] Tarefa {tarefa.nome} ainda pendente.\n")
-#                     else: 
-#                         tarefa.tempo_final = self.tempo_atual
-#                         # print(f"[{self.tempo_atual}s] Tarefa {tarefa.nome} finalizada.\nBursts: {tarefa.tempos_execucao}\n")
+                        # print(f"[{self.tempo_atual}s] Tarefa {tarefa.nome} ainda pendente.\n")
+                    else: 
+                        tarefa.tempo_final = self.tempo_atual
+                        # print(f"[{self.tempo_atual}s] Tarefa {tarefa.nome} finalizada.\nBursts: {tarefa.tempos_execucao}\n")
 
-#         self.exibir_sobrecarga()
+        self.exibir_sobrecarga()
 
 
-# class EscalonadorFutureVisionMedia(EscalonadorCAV):
-#     def __init__(self, quantum):
-#         super().__init__()
-#         self.quantum = quantum
+class EscalonadorFutureVisionMedia(EscalonadorCAV):
+    def __init__(self, quantum):
+        super().__init__()
+        self.quantum = quantum
 
-#     def limite(self, tarefas_que_chegaram):
-#         if (len(tarefas_que_chegaram) > 0):
-#             duracao_total = 0
-#             chegada_total = 0
+    def limite(self, tarefas_que_chegaram):
+        if (len(tarefas_que_chegaram) > 0):
+            duracao_total = 0
+            chegada_total = 0
 
-#             for tarefa in tarefas_que_chegaram:
-#                 duracao_total += tarefa.tempo_restante
-#                 chegada_total += tarefa.tempo_chegada
+            for tarefa in tarefas_que_chegaram:
+                duracao_total += tarefa.tempo_restante
+                chegada_total += tarefa.tempo_chegada
 
-#             duracao_media = duracao_total/len(tarefas_que_chegaram)
-#             chegada_media = chegada_total/len(tarefas_que_chegaram)
-#             lim_espera = duracao_media + chegada_media
-#             return lim_espera
-#         return 0
+            duracao_media = duracao_total/len(tarefas_que_chegaram)
+            chegada_media = chegada_total/len(tarefas_que_chegaram)
+            lim_espera = duracao_media + chegada_media
+            return lim_espera
+        return 0
 
-#     def escalonar(self):
-#         """Escalonamento Round Robin com tarefas de CAVs"""
-#         self.tarefas.sort(key=lambda tarefa: tarefa.tempo_chegada)
-#         fila = deque(self.tarefas)
+    def escalonar(self):
+        """Escalonamento Round Robin com tarefas de CAVs"""
+        self.tarefas.sort(key=lambda tarefa: tarefa.tempo_chegada)
+        fila = deque(self.tarefas)
 
-#         if (len(self.tarefas) > 0):
-#             self.tempo_atual = self.tarefas[0].tempo_chegada
+        if (len(self.tarefas) > 0):
+            self.tempo_atual = self.tarefas[0].tempo_chegada
 
-#             while fila:
-#                 tarefas_que_chegaram = [
-#                     tarefa for tarefa in fila if tarefa.tempo_chegada <= self.tempo_atual]
-#                 if (len(tarefas_que_chegaram) == 0):
-#                     self.tempo_atual = math.ceil(self.tempo_atual + 1)
-#                     continue
+            while fila:
+                tarefas_que_chegaram = [
+                    tarefa for tarefa in fila if tarefa.tempo_chegada <= self.tempo_atual]
+                if (len(tarefas_que_chegaram) == 0):
+                    self.tempo_atual = math.ceil(self.tempo_atual + 1)
+                    continue
 
-#                 tarefas_que_chegaram.sort(
-#                     key=lambda tarefa: tarefa.tempo_restante)
-#                 tarefa = tarefas_que_chegaram[0]
-#                 tarefa_maior_que_limite = None
+                tarefas_que_chegaram.sort(
+                    key=lambda tarefa: tarefa.tempo_restante)
+                tarefa = tarefas_que_chegaram[0]
+                tarefa_maior_que_limite = None
 
-#                 for t in tarefas_que_chegaram:
-#                     tempo_aguardando = self.tempo_atual - t.tempo_final_execucao_atual if (
-#                         t.tempo_final_execucao_atual is not None) else self.tempo_atual - t.tempo_chegada
-#                     if tempo_aguardando > self.limite(tarefas_que_chegaram):
-#                         tarefa_maior_que_limite = t
-#                         break
-#                 if tarefa_maior_que_limite is not None:
-#                     tarefa = tarefa_maior_que_limite
+                for t in tarefas_que_chegaram:
+                    tempo_aguardando = self.tempo_atual - t.tempo_final_execucao_atual if (
+                        t.tempo_final_execucao_atual is not None) else self.tempo_atual - t.tempo_chegada
+                    if tempo_aguardando > self.limite(tarefas_que_chegaram):
+                        tarefa_maior_que_limite = t
+                        break
+                if tarefa_maior_que_limite is not None:
+                    tarefa = tarefa_maior_que_limite
 
-#                 fila.remove(tarefa)
+                fila.remove(tarefa)
 
-#                 if tarefa.tempo_restante > 0:
-#                     tempo_aguardando = self.tempo_atual - tarefa.tempo_final_execucao_atual if (
-#                         tarefa.tempo_final_execucao_atual is not None) else (tarefa.tempo_de_resposta if tarefa.tempo_de_resposta is not None else self.tempo_atual - tarefa.tempo_chegada)
-#                     tarefa.tempo_inicio_execucao_atual = max(
-#                         self.tempo_atual, tarefa.tempo_chegada)
+                if tarefa.tempo_restante > 0:
+                    tempo_aguardando = self.tempo_atual - tarefa.tempo_final_execucao_atual if (
+                        tarefa.tempo_final_execucao_atual is not None) else (tarefa.tempo_de_resposta if tarefa.tempo_de_resposta is not None else self.tempo_atual - tarefa.tempo_chegada)
+                    tarefa.tempo_inicio_execucao_atual = max(
+                        self.tempo_atual, tarefa.tempo_chegada)
 
-#                     tarefa.tempo_inicio = tarefa.tempo_inicio_execucao_atual if tarefa.tempo_inicio is None else tarefa.tempo_inicio
-#                     tempo_exec = min(tarefa.tempo_restante, self.quantum)
+                    tarefa.tempo_inicio = tarefa.tempo_inicio_execucao_atual if tarefa.tempo_inicio is None else tarefa.tempo_inicio
+                    tempo_exec = min(tarefa.tempo_restante, self.quantum)
 
-#                     tarefa.tempo_em_espera += tarefa.tempo_inicio_execucao_atual - \
-#                         (tarefa.tempo_final_execucao_atual if tarefa.tempo_final_execucao_atual is not None else 0)
+                    tarefa.tempo_em_espera += tarefa.tempo_inicio_execucao_atual - \
+                        (tarefa.tempo_final_execucao_atual if tarefa.tempo_final_execucao_atual is not None else 0)
 
-#                     # print(f"[{self.tempo_atual}s] Executando tarefa {tarefa.nome} de {tarefa.duracao} segundos por {tempo_exec} segundos. (chegada: {tarefa.tempo_chegada}s, limite de espera: {self.limite(tarefas_que_chegaram)}s, tempo_espera: {(tempo_aguardando)}s)")
+                    # print(f"[{self.tempo_atual}s] Executando tarefa {tarefa.nome} de {tarefa.duracao} segundos por {tempo_exec} segundos. (chegada: {tarefa.tempo_chegada}s, limite de espera: {self.limite(tarefas_que_chegaram)}s, tempo_espera: {(tempo_aguardando)}s)")
 
-#                     # time.sleep(tempo_exec / 10)  # Simula a execução da tarefa 10x mais rapida
+                    # time.sleep(tempo_exec / 10)  # Simula a execução da tarefa 10x mais rapida
 
-#                     self.tempo_atual = tarefa.tempo_inicio_execucao_atual + tempo_exec
-#                     tarefa.tempo_final_execucao_atual = self.tempo_atual
-#                     tarefa.tempos_execucao.append(
-#                         (tarefa.tempo_inicio_execucao_atual, tarefa.tempo_final_execucao_atual))
-#                     tarefa.tempo_restante -= tempo_exec
+                    self.tempo_atual = tarefa.tempo_inicio_execucao_atual + tempo_exec
+                    tarefa.tempo_final_execucao_atual = self.tempo_atual
+                    tarefa.tempos_execucao.append(
+                        (tarefa.tempo_inicio_execucao_atual, tarefa.tempo_final_execucao_atual))
+                    tarefa.tempo_restante -= tempo_exec
 
-#                     tarefa.tempo_de_resposta = tarefa.tempo_inicio - tarefa.tempo_chegada
+                    tarefa.tempo_de_resposta = tarefa.tempo_inicio - tarefa.tempo_chegada
 
-#                     if tarefa.tempo_restante > 0:
-#                         # Registrando a sobrecarga, como exemplo, podemos adicionar um tempo fixo de sobrecarga
-#                         # 0.3 segundos de sobrecarga por tarefa
-#                         self.registrar_sobrecarga(0.3)
-#                         self.tempo_atual += 0.3
+                    if tarefa.tempo_restante > 0:
+                        # Registrando a sobrecarga, como exemplo, podemos adicionar um tempo fixo de sobrecarga
+                        # 0.3 segundos de sobrecarga por tarefa
+                        self.registrar_sobrecarga(0.3)
+                        self.tempo_atual += 0.3
 
-#                         if (fila):
-#                             for i in range(len(fila)):
-#                                 if (fila[i].tempo_chegada > self.tempo_atual):
-#                                     fila.insert(i, tarefa)
-#                                     break
-#                                 if (i == len(fila) - 1):
-#                                     fila.append(tarefa)
-#                         else:
-#                             fila.append(tarefa)
+                        if (fila):
+                            for i in range(len(fila)):
+                                if (fila[i].tempo_chegada > self.tempo_atual):
+                                    fila.insert(i, tarefa)
+                                    break
+                                if (i == len(fila) - 1):
+                                    fila.append(tarefa)
+                        else:
+                            fila.append(tarefa)
 
-#                         # print(f"[{self.tempo_atual}s] Tarefa {tarefa.nome} ainda pendente.\n")
-#                     else:
-#                         tarefa.tempo_final = self.tempo_atual
-#                         # print(f"[{self.tempo_atual}s] Tarefa {tarefa.nome} finalizada.\nBursts: {tarefa.tempos_execucao}\n")
+                        # print(f"[{self.tempo_atual}s] Tarefa {tarefa.nome} ainda pendente.\n")
+                    else:
+                        tarefa.tempo_final = self.tempo_atual
+                        # print(f"[{self.tempo_atual}s] Tarefa {tarefa.nome} finalizada.\nBursts: {tarefa.tempos_execucao}\n")
 
-#         self.exibir_sobrecarga()
+        self.exibir_sobrecarga()
 
 
 class EscalonadorFutureVisionMediaIntervalo(EscalonadorCAV):
@@ -925,118 +937,118 @@ class EscalonadorFutureVisionMin(EscalonadorCAV):
         self.exibir_sobrecarga()
 
 
-# class EscalonadorFutureVisionMax(EscalonadorCAV):
-#     def __init__(self, quantum):
-#         super().__init__()
-#         self.quantum = quantum
+class EscalonadorFutureVisionMax(EscalonadorCAV):
+    def __init__(self, quantum):
+        super().__init__()
+        self.quantum = quantum
 
-#     def limite(self, tarefas_que_chegaram):
-#         if (len(tarefas_que_chegaram) > 0):
-#             duracao_total = 0
-#             chegada_total = 0
-#             min_chegada = tarefas_que_chegaram[0].tempo_chegada
-#             max_chegada = tarefas_que_chegaram[0].tempo_chegada
-#             mediana_chegada = 0
+    def limite(self, tarefas_que_chegaram):
+        if (len(tarefas_que_chegaram) > 0):
+            duracao_total = 0
+            chegada_total = 0
+            min_chegada = tarefas_que_chegaram[0].tempo_chegada
+            max_chegada = tarefas_que_chegaram[0].tempo_chegada
+            mediana_chegada = 0
 
-#             if (len(tarefas_que_chegaram) % 2 == 0):
-#                 mediana_chegada = (tarefas_que_chegaram[len(
-#                     tarefas_que_chegaram) // 2 - 1].tempo_chegada + tarefas_que_chegaram[len(tarefas_que_chegaram) // 2].tempo_chegada) / 2
-#             else:
-#                 mediana_chegada = tarefas_que_chegaram[len(
-#                     tarefas_que_chegaram) // 2].tempo_chegada
+            if (len(tarefas_que_chegaram) % 2 == 0):
+                mediana_chegada = (tarefas_que_chegaram[len(
+                    tarefas_que_chegaram) // 2 - 1].tempo_chegada + tarefas_que_chegaram[len(tarefas_que_chegaram) // 2].tempo_chegada) / 2
+            else:
+                mediana_chegada = tarefas_que_chegaram[len(
+                    tarefas_que_chegaram) // 2].tempo_chegada
 
-#             for tarefa in tarefas_que_chegaram:
-#                 duracao_total += tarefa.tempo_restante
-#                 chegada_total += tarefa.tempo_chegada
-#                 min_chegada = min(min_chegada, tarefa.tempo_chegada)
-#                 max_chegada = max(max_chegada, tarefa.tempo_chegada)
+            for tarefa in tarefas_que_chegaram:
+                duracao_total += tarefa.tempo_restante
+                chegada_total += tarefa.tempo_chegada
+                min_chegada = min(min_chegada, tarefa.tempo_chegada)
+                max_chegada = max(max_chegada, tarefa.tempo_chegada)
 
-#             duracao_media = duracao_total/len(tarefas_que_chegaram)
-#             chegada_media_intervalo = (min_chegada + max_chegada) // 2
-#             chegada_media = chegada_total/len(tarefas_que_chegaram)
+            duracao_media = duracao_total/len(tarefas_que_chegaram)
+            chegada_media_intervalo = (min_chegada + max_chegada) // 2
+            chegada_media = chegada_total/len(tarefas_que_chegaram)
 
-#             lim_espera = duracao_media + \
-#                 max(chegada_media, chegada_media_intervalo, mediana_chegada)
-#             return lim_espera
-#         return 0
+            lim_espera = duracao_media + \
+                max(chegada_media, chegada_media_intervalo, mediana_chegada)
+            return lim_espera
+        return 0
 
-#     def escalonar(self):
-#         """Escalonamento Round Robin com tarefas de CAVs"""
-#         self.tarefas.sort(key=lambda tarefa: tarefa.tempo_chegada)
-#         fila = deque(self.tarefas)
+    def escalonar(self):
+        """Escalonamento Round Robin com tarefas de CAVs"""
+        self.tarefas.sort(key=lambda tarefa: tarefa.tempo_chegada)
+        fila = deque(self.tarefas)
 
-#         if (len(self.tarefas) > 0):
-#             self.tempo_atual = self.tarefas[0].tempo_chegada
+        if (len(self.tarefas) > 0):
+            self.tempo_atual = self.tarefas[0].tempo_chegada
 
-#             while fila:
-#                 tarefas_que_chegaram = [
-#                     tarefa for tarefa in fila if tarefa.tempo_chegada <= self.tempo_atual]
-#                 if (len(tarefas_que_chegaram) == 0):
-#                     self.tempo_atual = math.ceil(self.tempo_atual + 1)
-#                     continue
+            while fila:
+                tarefas_que_chegaram = [
+                    tarefa for tarefa in fila if tarefa.tempo_chegada <= self.tempo_atual]
+                if (len(tarefas_que_chegaram) == 0):
+                    self.tempo_atual = math.ceil(self.tempo_atual + 1)
+                    continue
 
-#                 tarefas_que_chegaram.sort(
-#                     key=lambda tarefa: tarefa.tempo_restante)
-#                 tarefa = tarefas_que_chegaram[0]
-#                 tarefa_maior_que_limite = None
+                tarefas_que_chegaram.sort(
+                    key=lambda tarefa: tarefa.tempo_restante)
+                tarefa = tarefas_que_chegaram[0]
+                tarefa_maior_que_limite = None
 
-#                 for t in tarefas_que_chegaram:
-#                     tempo_aguardando = self.tempo_atual - t.tempo_final_execucao_atual if (
-#                         t.tempo_final_execucao_atual is not None) else self.tempo_atual - t.tempo_chegada
-#                     if tempo_aguardando > self.limite(tarefas_que_chegaram):
-#                         tarefa_maior_que_limite = t
-#                         break
-#                 if tarefa_maior_que_limite is not None:
-#                     tarefa = tarefa_maior_que_limite
+                for t in tarefas_que_chegaram:
+                    tempo_aguardando = self.tempo_atual - t.tempo_final_execucao_atual if (
+                        t.tempo_final_execucao_atual is not None) else self.tempo_atual - t.tempo_chegada
+                    if tempo_aguardando > self.limite(tarefas_que_chegaram):
+                        tarefa_maior_que_limite = t
+                        break
+                if tarefa_maior_que_limite is not None:
+                    tarefa = tarefa_maior_que_limite
 
-#                 fila.remove(tarefa)
+                fila.remove(tarefa)
 
-#                 if tarefa.tempo_restante > 0:
-#                     tempo_aguardando = self.tempo_atual - tarefa.tempo_final_execucao_atual if (
-#                         tarefa.tempo_final_execucao_atual is not None) else (tarefa.tempo_de_resposta if tarefa.tempo_de_resposta is not None else self.tempo_atual - tarefa.tempo_chegada)
-#                     tarefa.tempo_inicio_execucao_atual = max(
-#                         self.tempo_atual, tarefa.tempo_chegada)
+                if tarefa.tempo_restante > 0:
+                    tempo_aguardando = self.tempo_atual - tarefa.tempo_final_execucao_atual if (
+                        tarefa.tempo_final_execucao_atual is not None) else (tarefa.tempo_de_resposta if tarefa.tempo_de_resposta is not None else self.tempo_atual - tarefa.tempo_chegada)
+                    tarefa.tempo_inicio_execucao_atual = max(
+                        self.tempo_atual, tarefa.tempo_chegada)
 
-#                     tarefa.tempo_inicio = tarefa.tempo_inicio_execucao_atual if tarefa.tempo_inicio is None else tarefa.tempo_inicio
-#                     tempo_exec = min(tarefa.tempo_restante, self.quantum)
+                    tarefa.tempo_inicio = tarefa.tempo_inicio_execucao_atual if tarefa.tempo_inicio is None else tarefa.tempo_inicio
+                    tempo_exec = min(tarefa.tempo_restante, self.quantum)
 
-#                     tarefa.tempo_em_espera += tarefa.tempo_inicio_execucao_atual - \
-#                         (tarefa.tempo_final_execucao_atual if tarefa.tempo_final_execucao_atual is not None else 0)
+                    tarefa.tempo_em_espera += tarefa.tempo_inicio_execucao_atual - \
+                        (tarefa.tempo_final_execucao_atual if tarefa.tempo_final_execucao_atual is not None else 0)
 
-#                     # print( f"[{self.tempo_atual}s] Executando tarefa {tarefa.nome} de {tarefa.duracao} segundos por {tempo_exec} segundos. (chegada: {tarefa.tempo_chegada}s, limite de espera: {self.limite(tarefas_que_chegaram)}s, tempo_espera: {(tempo_aguardando)}s)")
+                    # print( f"[{self.tempo_atual}s] Executando tarefa {tarefa.nome} de {tarefa.duracao} segundos por {tempo_exec} segundos. (chegada: {tarefa.tempo_chegada}s, limite de espera: {self.limite(tarefas_que_chegaram)}s, tempo_espera: {(tempo_aguardando)}s)")
 
-#                     # time.sleep(tempo_exec / 10)  # Simula a execução da tarefa 10x mais rapida
+                    # time.sleep(tempo_exec / 10)  # Simula a execução da tarefa 10x mais rapida
 
-#                     self.tempo_atual = tarefa.tempo_inicio_execucao_atual + tempo_exec
-#                     tarefa.tempo_final_execucao_atual = self.tempo_atual
-#                     tarefa.tempos_execucao.append(
-#                         (tarefa.tempo_inicio_execucao_atual, tarefa.tempo_final_execucao_atual))
-#                     tarefa.tempo_restante -= tempo_exec
+                    self.tempo_atual = tarefa.tempo_inicio_execucao_atual + tempo_exec
+                    tarefa.tempo_final_execucao_atual = self.tempo_atual
+                    tarefa.tempos_execucao.append(
+                        (tarefa.tempo_inicio_execucao_atual, tarefa.tempo_final_execucao_atual))
+                    tarefa.tempo_restante -= tempo_exec
 
-#                     tarefa.tempo_de_resposta = tarefa.tempo_inicio - tarefa.tempo_chegada
+                    tarefa.tempo_de_resposta = tarefa.tempo_inicio - tarefa.tempo_chegada
 
-#                     if tarefa.tempo_restante > 0:
-#                         # Registrando a sobrecarga, como exemplo, podemos adicionar um tempo fixo de sobrecarga
-#                         # 0.3 segundos de sobrecarga por tarefa
-#                         self.registrar_sobrecarga(0.3)
-#                         self.tempo_atual += 0.3
+                    if tarefa.tempo_restante > 0:
+                        # Registrando a sobrecarga, como exemplo, podemos adicionar um tempo fixo de sobrecarga
+                        # 0.3 segundos de sobrecarga por tarefa
+                        self.registrar_sobrecarga(0.3)
+                        self.tempo_atual += 0.3
 
-#                         if (fila):
-#                             for i in range(len(fila)):
-#                                 if (fila[i].tempo_chegada > self.tempo_atual):
-#                                     fila.insert(i, tarefa)
-#                                     break
-#                                 if (i == len(fila) - 1):
-#                                     fila.append(tarefa)
-#                         else:
-#                             fila.append(tarefa)
+                        if (fila):
+                            for i in range(len(fila)):
+                                if (fila[i].tempo_chegada > self.tempo_atual):
+                                    fila.insert(i, tarefa)
+                                    break
+                                if (i == len(fila) - 1):
+                                    fila.append(tarefa)
+                        else:
+                            fila.append(tarefa)
 
-#                         # print(f"[{self.tempo_atual}s] Tarefa {tarefa.nome} ainda pendente.\n")
-#                     else:
-#                         tarefa.tempo_final = self.tempo_atual
-#                         # print(f"[{self.tempo_atual}s] Tarefa {tarefa.nome} finalizada.\nBursts: {tarefa.tempos_execucao}\n")
+                        # print(f"[{self.tempo_atual}s] Tarefa {tarefa.nome} ainda pendente.\n")
+                    else:
+                        tarefa.tempo_final = self.tempo_atual
+                        # print(f"[{self.tempo_atual}s] Tarefa {tarefa.nome} finalizada.\nBursts: {tarefa.tempos_execucao}\n")
 
-#         self.exibir_sobrecarga()
+        self.exibir_sobrecarga()
 
 
 class CAV:
@@ -1081,8 +1093,8 @@ def criar_tarefas():
     tarefas = []
     
     for i in range(quantidade):
-        # duracao = max(random.normalvariate(5, 10), 1)
-        duracao = random.random() * 59 + 1
+        duracao = max(random.normalvariate(5, 10), 1)
+        # duracao = random.random() * 59 + 1
         # print(duracao)
         tarefas.append(TarefaCAV(
             nome=f"Tarefa {i}", 
@@ -1103,6 +1115,7 @@ def main():
     tarefas = deepcopy(tarefas_originais)
 
     avgs_turnarounds = []
+    avgs_tempos_em_espera = []
 
     # Criar um CAV
     cav = CAV(id=1)
@@ -1110,25 +1123,27 @@ def main():
         cav.adicionar_tarefa(t)
 
 
-    # # print("Simulando CAV com Prioridade P:\n")
-    # escalonador_p = EscalonadorPrioridadeP(2)
-    # for t in tarefas:
-    #     escalonador_p.adicionar_tarefa(t)
+    # print("Simulando CAV com Prioridade P:\n")
+    escalonador_p = EscalonadorPrioridadeP(2)
+    for t in tarefas:
+        escalonador_p.adicionar_tarefa(t)
 
-    # simulador_p = CAV(id=1)
-    # simulador_p.executar_tarefas(escalonador_p)
-    # escalonador_p.calcular_e_exibir_metricas(tarefas)
+    simulador_p = CAV(id=1)
+    simulador_p.executar_tarefas(escalonador_p)
+    avgs_turnarounds.append(('Prioridade P', escalonador_p.calcular_turnaround_medio()))
+    avgs_tempos_em_espera.append(('Prioridade P', escalonador_p.calcular_tempo_em_espera_medio()))
 
-    # tarefas = criar_tarefas()
+    tarefas = criar_tarefas()
 
-    # # print("Simulando CAV com EDF:\n")
-    # escalonador_EDF = EscalonadorEDF(2)
-    # for t in tarefas:
-    #     escalonador_EDF.adicionar_tarefa(t)
+    # print("Simulando CAV com EDF:\n")
+    escalonador_EDF = EscalonadorEDF(2)
+    for t in tarefas:
+        escalonador_EDF.adicionar_tarefa(t)
 
-    # simulador_EDF = CAV(id=1)
-    # simulador_EDF.executar_tarefas(escalonador_EDF)
-    # escalonador_EDF.calcular_e_exibir_metricas(tarefas)
+    simulador_EDF = CAV(id=1)
+    simulador_EDF.executar_tarefas(escalonador_EDF)
+    avgs_turnarounds.append(('EDF', escalonador_EDF.calcular_turnaround_medio()))
+    avgs_tempos_em_espera.append(('EDF', escalonador_EDF.calcular_tempo_em_espera_medio()))
 
     tarefas = deepcopy(tarefas_originais)
     # print(list(t.tempos_execucao for t in tarefas))
@@ -1142,18 +1157,21 @@ def main():
     simulador_SJF.executar_tarefas(escalonador_SJF)
     escalonador_SJF.calcular_e_exibir_metricas()
     avgs_turnarounds.append(('SJF', escalonador_SJF.calcular_turnaround_medio()))
+    avgs_tempos_em_espera.append(('SJF', escalonador_SJF.calcular_tempo_em_espera_medio()))
 
-    # tarefas = criar_tarefas()
+    tarefas = criar_tarefas()
 
-    # # Criar um escalonador FIFO
-    # # print("Simulando CAV com FIFO:\n")
-    # escalonador_fifo = EscalonadorFIFO()
-    # for t in tarefas:
-    #     escalonador_fifo.adicionar_tarefa(t)
+    # Criar um escalonador FIFO
+    # print("Simulando CAV com FIFO:\n")
+    escalonador_fifo = EscalonadorFIFO()
+    for t in tarefas:
+        escalonador_fifo.adicionar_tarefa(t)
         
-    # simulador_fifo = CAV(id=1)
-    # simulador_fifo.executar_tarefas(escalonador_fifo)
-    # escalonador_fifo.calcular_e_exibir_metricas()
+    simulador_fifo = CAV(id=1)
+    simulador_fifo.executar_tarefas(escalonador_fifo)
+    escalonador_fifo.calcular_e_exibir_metricas()
+    avgs_turnarounds.append(('FIFO', escalonador_fifo.calcular_turnaround_medio()))
+    avgs_tempos_em_espera.append(('FIFO', escalonador_fifo.calcular_tempo_em_espera_medio()))
 
     tarefas = deepcopy(tarefas_originais)
     # print(list(t.tempos_execucao for t in tarefas))
@@ -1169,36 +1187,47 @@ def main():
     escalonador_rr.calcular_e_exibir_metricas()
     avgs_turnarounds.append(
         ('RR', escalonador_rr.calcular_turnaround_medio()))
+    avgs_tempos_em_espera.append(
+        ('RR', escalonador_rr.calcular_tempo_em_espera_medio()))
 
-    # tarefas = criar_tarefas()
+    tarefas = criar_tarefas()
 
-    # # Criar um escalonador por Prioridade
-    # # print("\nSimulando CAV com Escalonamento por Prioridade:\n")
-    # escalonador_prio = EscalonadorPrioridadeNP()
-    # for t in tarefas:
-    #     escalonador_prio.adicionar_tarefa(t)
+    # Criar um escalonador por Prioridade
+    # print("\nSimulando CAV com Escalonamento por Prioridade:\n")
+    escalonador_prio = EscalonadorPrioridadeNP()
+    for t in tarefas:
+        escalonador_prio.adicionar_tarefa(t)
 
-    # simulador_prio = CAV(id=1)
-    # simulador_prio.executar_tarefas(escalonador_prio)
-    # escalonador_prio.calcular_e_exibir_metricas()
+    simulador_prio = CAV(id=1)
+    simulador_prio.executar_tarefas(escalonador_prio)
+    escalonador_prio.calcular_e_exibir_metricas()
+    avgs_turnarounds.append(
+        ('Prioridade NP', escalonador_prio.calcular_turnaround_medio()))
+    avgs_tempos_em_espera.append(
+        ('Prioridade NP', escalonador_prio.calcular_tempo_em_espera_medio()))
+    
 
-    # tarefas = criar_tarefas()
+    tarefas = criar_tarefas()
 
-    # # Criar um escalonador por Último gás
-    # # print("\nSimulando CAV com Escalonamento por Último Gás:\n")
-    # escalonador_ug = EscalonadorUG(3)
-    # for t in tarefas:
-    #     escalonador_ug.adicionar_tarefa(t)
+    # Criar um escalonador por Último gás
+    # print("\nSimulando CAV com Escalonamento por Último Gás:\n")
+    escalonador_ug = EscalonadorUG(3)
+    for t in tarefas:
+        escalonador_ug.adicionar_tarefa(t)
 
-    # simulador_ug = CAV(id=1)
-    # simulador_ug.executar_tarefas(escalonador_ug)
-    # escalonador_ug.calcular_e_exibir_metricas()
+    simulador_ug = CAV(id=1)
+    simulador_ug.executar_tarefas(escalonador_ug)
+    escalonador_ug.calcular_e_exibir_metricas()
+    avgs_turnarounds.append(
+        ('UG', escalonador_ug.calcular_turnaround_medio()))
+    avgs_tempos_em_espera.append(
+        ('UG', escalonador_ug.calcular_tempo_em_espera_medio()))
     
     tarefas = deepcopy(tarefas_originais)
     # print(list(t.tempos_execucao for t in tarefas))
     
     # print("\nSimulando CAV com Escalonamento por visão do futuro (mediana):\n")
-    """escalonador_vf = EscalonadorFutureVision(3)
+    escalonador_vf = EscalonadorFutureVision(3)
     for t in tarefas:
         escalonador_vf.adicionar_tarefa(t)
 
@@ -1207,6 +1236,8 @@ def main():
     escalonador_vf.calcular_e_exibir_metricas()
     avgs_turnarounds.append(
         ('VF', escalonador_vf.calcular_turnaround_medio()))
+    avgs_tempos_em_espera.append(
+        ('VF', escalonador_vf.calcular_tempo_em_espera_medio()))
     
     tarefas = deepcopy(tarefas_originais)
     # print(list(t.tempos_execucao for t in tarefas))
@@ -1221,7 +1252,9 @@ def main():
     escalonador_vfmed.calcular_e_exibir_metricas()
     avgs_turnarounds.append(
         ('VFmed', escalonador_vfmed.calcular_turnaround_medio()))
-     """
+    avgs_tempos_em_espera.append(
+        ('VFmed', escalonador_vfmed.calcular_tempo_em_espera_medio()))
+    
     
     tarefas = deepcopy(tarefas_originais)
     # print(list(t.tempos_execucao for t in tarefas))
@@ -1236,6 +1269,8 @@ def main():
     escalonador_vfmedintervalo.calcular_e_exibir_metricas()
     avgs_turnarounds.append(
         ('VFmedintervalo', escalonador_vfmedintervalo.calcular_turnaround_medio()))
+    avgs_tempos_em_espera.append(
+        ('VFmedintervalo', escalonador_vfmedintervalo.calcular_tempo_em_espera_medio()))
     
     
     tarefas = deepcopy(tarefas_originais)
@@ -1251,8 +1286,10 @@ def main():
     escalonador_vfmin.calcular_e_exibir_metricas()
     avgs_turnarounds.append(
         ('VFmin', escalonador_vfmin.calcular_turnaround_medio()))
+    avgs_tempos_em_espera.append(
+        ('VFmin', escalonador_vfmin.calcular_tempo_em_espera_medio()))
     
-    """ tarefas = deepcopy(tarefas_originais)
+    tarefas = deepcopy(tarefas_originais)
     # print(list(t.tempos_execucao for t in tarefas))
 
     # print("\nSimulando CAV com Escalonamento por visão do futuro (media do intervalo):\n")
@@ -1265,8 +1302,21 @@ def main():
     escalonador_vfmax.calcular_e_exibir_metricas()
     avgs_turnarounds.append(
         ('VFmax', escalonador_vfmax.calcular_turnaround_medio()))
-    """
-    
+    avgs_tempos_em_espera.append(
+        ('VFmax', escalonador_vfmax.calcular_tempo_em_espera_medio()))
+   
+    with open('turnarounds.csv', 'a') as f:
+        line = ''
+        for avg in avgs_turnarounds:
+            line += f'{avg[1]},' if avg != avgs_turnarounds[-1] else f'{avg[1]}'
+        f.write(f'{len(tarefas)},{line}\n')
+        
+    with open('tempos_em_espera.csv', 'a') as f:
+        line = ''
+        for avg in avgs_tempos_em_espera:
+            line += f'{avg[1]},' if avg != avgs_tempos_em_espera[-1] else f'{avg[1]}'
+        f.write(f'{len(tarefas)},{line}\n')
+        
     print(len(tarefas))
     print(avgs_turnarounds)
     
@@ -1278,5 +1328,50 @@ def main():
     print('menor dos FV:', menor_avg)
     
 if __name__ == "__main__":
-    for i in range(100):
-        main()
+    
+    # with open('turnarounds.csv', 'w') as f:
+    #     f.write('tarefas,prioridade p,edf,sjf,fifo,rr,prioridade np,ug,vf mediana,vf media,vf media intervalo,vf min,vf max\n')
+    #     f.close()
+        
+    # with open('tempos_em_espera.csv', 'w') as f:
+    #     f.write('tarefas,prioridade p,edf,sjf,fifo,rr,prioridade np,ug,vf mediana,vf media,vf media intervalo,vf min,vf max\n')
+    #     f.close()
+    
+    # for i in range(100):
+    #     main()
+        
+    
+
+    # Lê o CSV
+    df = pd.read_csv('turnarounds.csv', header=0)
+
+    # Remove a coluna de identificação se não for numérica (ex: 'tarefas')
+    if not pd.api.types.is_numeric_dtype(df.iloc[:, 0]):
+        df_numeric = df.iloc[:, 1:]
+    else:
+        df_numeric = df.iloc[:, 1:]
+
+    # Calcula média e desvio padrão
+    medias = df_numeric.mean()
+    desvios = df_numeric.std()
+
+    # Cria o gráfico
+    plt.figure(figsize=(12, 6))
+    bars = plt.bar(medias.index, medias.values, yerr=desvios.values, capsize=5, color='skyblue', edgecolor='black')
+
+    # Adiciona os valores acima das barras
+    for i, bar in enumerate(bars):
+        altura = bar.get_height()
+        media_val = f"{medias[i]:.2f}"
+        desvio_val = f"±{desvios[i]:.2f}"
+        plt.text(bar.get_x() + bar.get_width()/2, altura + desvios[i] + 10,  # posição acima da barra + erro
+                f"{media_val}\n{desvio_val}", 
+                ha='center', va='bottom', fontsize=9, fontweight='bold')
+
+    plt.xticks(rotation=45, ha='right')
+    plt.ylabel('Valor')
+    plt.title('Média e Desvio Padrão por Algoritmo de Escalonamento')
+    plt.tight_layout()
+
+    # Exibe o gráfico
+    plt.show()
