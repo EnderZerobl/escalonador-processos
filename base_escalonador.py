@@ -1081,7 +1081,8 @@ def criar_tarefas():
     tarefas = []
     
     for i in range(quantidade):
-        duracao = max(random.normalvariate(5, 10), 1)
+        # duracao = max(random.normalvariate(5, 10), 1)
+        duracao = random.random() * 59 + 1
         # print(duracao)
         tarefas.append(TarefaCAV(
             nome=f"Tarefa {i}", 
