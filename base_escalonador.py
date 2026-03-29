@@ -6,6 +6,8 @@ from abc import ABC, abstractmethod
 import math
 from copy import deepcopy
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+import matplotlib.colors as mcolors
 
 #Atual
 
@@ -121,6 +123,20 @@ class EscalonadorCAV(ABC):
             if tarefa.tempo_final != None:  # Calcula apenas para self.tarefas que foram concluídas
                 espera = tarefa.tempo_final - tarefa.tempo_chegada - tarefa.duracao
                 tempos_de_espera.append(espera)
+        if tempos_de_espera:
+            return sum(tempos_de_espera) / len(tempos_de_espera)
+        return None
+
+    def calcular_media_maior_tempo_esperando(self):
+        tempos_de_espera = []
+        for tarefa in self.tarefas:
+            if tarefa.tempo_final != None:  # Calcula apenas para self.tarefas que foram concluídas
+                espera_max = tarefa.tempo_de_resposta
+                for i in range(len(tarefa.tempos_execucao) - 1):
+                    espera = tarefa.tempos_execucao[i + 1][0] - tarefa.tempos_execucao[i][1]
+                    if espera > espera_max:
+                        espera_max = espera
+                tempos_de_espera.append(espera_max)
         if tempos_de_espera:
             return sum(tempos_de_espera) / len(tempos_de_espera)
         return None
@@ -1064,6 +1080,12 @@ class CAV:
         escalonador.escalonar()
         # print(f"CAV {self.id} terminou todas as suas tarefas.\n")
 
+vetor_duracoes = [0] * 60
+quantidade_tarefas = 1
+in_order_tasks = False
+generating_distribution = False
+normal_distribution_for_durations = False
+
 # Função para criar algumas tarefas fictícias
 def criar_tarefas():
     # tarefas = [
@@ -1089,12 +1111,15 @@ def criar_tarefas():
     #     # TarefaCAV("Envio de Diagnóstico Remoto", 4, prioridade=4, tempo_chegada=27, possivelmente_catastrofico=False),
     # ]
     # return tarefas
-    quantidade = random.randint(1, 500)
+    quantidade = quantidade_tarefas if (in_order_tasks) else random.randint(1, 10000 if generating_distribution else 500)
     tarefas = []
     
     for i in range(quantidade):
-        duracao = max(random.normalvariate(5, 10), 1)
-        # duracao = random.random() * 59 + 1
+        duracao = random.normalvariate(3, 7) * 2
+        duracao = duracao if duracao > 0 else -duracao
+        if (round(duracao) < len(vetor_duracoes)): vetor_duracoes[(round(duracao))] += 1
+        if (not normal_distribution_for_durations): 
+            duracao = random.random() * 59 + 1
         # print(duracao)
         tarefas.append(TarefaCAV(
             nome=f"Tarefa {i}", 
@@ -1116,62 +1141,31 @@ def main():
 
     avgs_turnarounds = []
     avgs_tempos_em_espera = []
+    avgs_tempo_maximo_esperando = []
 
     # Criar um CAV
     cav = CAV(id=1)
     for t in tarefas:
         cav.adicionar_tarefa(t)
-
-
-    # print("Simulando CAV com Prioridade P:\n")
-    escalonador_p = EscalonadorPrioridadeP(2)
-    for t in tarefas:
-        escalonador_p.adicionar_tarefa(t)
-
-    simulador_p = CAV(id=1)
-    simulador_p.executar_tarefas(escalonador_p)
-    avgs_turnarounds.append(('Prioridade P', escalonador_p.calcular_turnaround_medio()))
-    avgs_tempos_em_espera.append(('Prioridade P', escalonador_p.calcular_tempo_em_espera_medio()))
-
-    tarefas = criar_tarefas()
-
-    # print("Simulando CAV com EDF:\n")
-    escalonador_EDF = EscalonadorEDF(2)
-    for t in tarefas:
-        escalonador_EDF.adicionar_tarefa(t)
-
-    simulador_EDF = CAV(id=1)
-    simulador_EDF.executar_tarefas(escalonador_EDF)
-    avgs_turnarounds.append(('EDF', escalonador_EDF.calcular_turnaround_medio()))
-    avgs_tempos_em_espera.append(('EDF', escalonador_EDF.calcular_tempo_em_espera_medio()))
-
+        
     tarefas = deepcopy(tarefas_originais)
-    # print(list(t.tempos_execucao for t in tarefas))
-
-    # print("Simulando CAV com SJF:\n")
-    escalonador_SJF = EscalonadorSJF()
-    for t in tarefas:
-        escalonador_SJF.adicionar_tarefa(t)
-
-    simulador_SJF = CAV(id=1)
-    simulador_SJF.executar_tarefas(escalonador_SJF)
-    escalonador_SJF.calcular_e_exibir_metricas()
-    avgs_turnarounds.append(('SJF', escalonador_SJF.calcular_turnaround_medio()))
-    avgs_tempos_em_espera.append(('SJF', escalonador_SJF.calcular_tempo_em_espera_medio()))
-
-    tarefas = criar_tarefas()
 
     # Criar um escalonador FIFO
     # print("Simulando CAV com FIFO:\n")
     escalonador_fifo = EscalonadorFIFO()
     for t in tarefas:
         escalonador_fifo.adicionar_tarefa(t)
-        
+
     simulador_fifo = CAV(id=1)
     simulador_fifo.executar_tarefas(escalonador_fifo)
     escalonador_fifo.calcular_e_exibir_metricas()
-    avgs_turnarounds.append(('FIFO', escalonador_fifo.calcular_turnaround_medio()))
-    avgs_tempos_em_espera.append(('FIFO', escalonador_fifo.calcular_tempo_em_espera_medio()))
+    avgs_turnarounds.append(
+        ('FIFO', escalonador_fifo.calcular_turnaround_medio()))
+    avgs_tempos_em_espera.append(
+        ('FIFO', escalonador_fifo.calcular_tempo_em_espera_medio()))
+    avgs_tempo_maximo_esperando.append(
+        ('FIFO', escalonador_fifo.calcular_media_maior_tempo_esperando())
+    )
 
     tarefas = deepcopy(tarefas_originais)
     # print(list(t.tempos_execucao for t in tarefas))
@@ -1189,8 +1183,42 @@ def main():
         ('RR', escalonador_rr.calcular_turnaround_medio()))
     avgs_tempos_em_espera.append(
         ('RR', escalonador_rr.calcular_tempo_em_espera_medio()))
+    avgs_tempo_maximo_esperando.append(
+        ('RR', escalonador_rr.calcular_media_maior_tempo_esperando())
+    )
 
-    tarefas = criar_tarefas()
+
+    tarefas = deepcopy(tarefas_originais)
+
+    # print("Simulando CAV com EDF:\n")
+    escalonador_EDF = EscalonadorEDF(2)
+    for t in tarefas:
+        escalonador_EDF.adicionar_tarefa(t)
+
+    simulador_EDF = CAV(id=1)
+    simulador_EDF.executar_tarefas(escalonador_EDF)
+    avgs_turnarounds.append(
+        ('EDF', escalonador_EDF.calcular_turnaround_medio()))
+    avgs_tempos_em_espera.append(
+        ('EDF', escalonador_EDF.calcular_tempo_em_espera_medio()))
+    avgs_tempo_maximo_esperando.append(
+        ('EDF', escalonador_EDF.calcular_media_maior_tempo_esperando())
+    )
+
+    # print("Simulando CAV com Prioridade P:\n")
+    escalonador_p = EscalonadorPrioridadeP(2)
+    for t in tarefas:
+        escalonador_p.adicionar_tarefa(t)
+
+    simulador_p = CAV(id=1)
+    simulador_p.executar_tarefas(escalonador_p)
+    avgs_turnarounds.append(('Prioridade P', escalonador_p.calcular_turnaround_medio()))
+    avgs_tempos_em_espera.append(('Prioridade P', escalonador_p.calcular_tempo_em_espera_medio()))
+    avgs_tempo_maximo_esperando.append(
+        ('Prioridade P', escalonador_p.calcular_media_maior_tempo_esperando())
+    )
+
+    tarefas = deepcopy(tarefas_originais)
 
     # Criar um escalonador por Prioridade
     # print("\nSimulando CAV com Escalonamento por Prioridade:\n")
@@ -1205,9 +1233,34 @@ def main():
         ('Prioridade NP', escalonador_prio.calcular_turnaround_medio()))
     avgs_tempos_em_espera.append(
         ('Prioridade NP', escalonador_prio.calcular_tempo_em_espera_medio()))
+    avgs_tempo_maximo_esperando.append(
+        ('Prioridade NP', escalonador_prio.calcular_media_maior_tempo_esperando())
+    )
+
+    tarefas = deepcopy(tarefas_originais)
+    # print(list(t.tempos_execucao for t in tarefas))
+
+    # print("Simulando CAV com SJF:\n")
+    escalonador_SJF = EscalonadorSJF()
+    for t in tarefas:
+        escalonador_SJF.adicionar_tarefa(t)
+
+    simulador_SJF = CAV(id=1)
+    simulador_SJF.executar_tarefas(escalonador_SJF)
+    escalonador_SJF.calcular_e_exibir_metricas()
+    avgs_turnarounds.append(('SJF', escalonador_SJF.calcular_turnaround_medio()))
+    avgs_tempos_em_espera.append(('SJF', escalonador_SJF.calcular_tempo_em_espera_medio()))
+    avgs_tempo_maximo_esperando.append(
+        ('SJF', escalonador_SJF.calcular_media_maior_tempo_esperando())
+    )
+
+
     
 
-    tarefas = criar_tarefas()
+    
+    
+
+    tarefas = deepcopy(tarefas_originais)
 
     # Criar um escalonador por Último gás
     # print("\nSimulando CAV com Escalonamento por Último Gás:\n")
@@ -1222,38 +1275,41 @@ def main():
         ('UG', escalonador_ug.calcular_turnaround_medio()))
     avgs_tempos_em_espera.append(
         ('UG', escalonador_ug.calcular_tempo_em_espera_medio()))
+    avgs_tempo_maximo_esperando.append(
+        ('UG', escalonador_ug.calcular_media_maior_tempo_esperando())
+    )
     
-    tarefas = deepcopy(tarefas_originais)
-    # print(list(t.tempos_execucao for t in tarefas))
+    # tarefas = deepcopy(tarefas_originais)
+    # # print(list(t.tempos_execucao for t in tarefas))
     
-    # print("\nSimulando CAV com Escalonamento por visão do futuro (mediana):\n")
-    escalonador_vf = EscalonadorFutureVision(3)
-    for t in tarefas:
-        escalonador_vf.adicionar_tarefa(t)
+    # # print("\nSimulando CAV com Escalonamento por visão do futuro (mediana):\n")
+    # escalonador_vf = EscalonadorFutureVision(3)
+    # for t in tarefas:
+    #     escalonador_vf.adicionar_tarefa(t)
 
-    simulador_vf = CAV(id=1)
-    simulador_vf.executar_tarefas(escalonador_vf)
-    escalonador_vf.calcular_e_exibir_metricas()
-    avgs_turnarounds.append(
-        ('VF', escalonador_vf.calcular_turnaround_medio()))
-    avgs_tempos_em_espera.append(
-        ('VF', escalonador_vf.calcular_tempo_em_espera_medio()))
+    # simulador_vf = CAV(id=1)
+    # simulador_vf.executar_tarefas(escalonador_vf)
+    # escalonador_vf.calcular_e_exibir_metricas()
+    # avgs_turnarounds.append(
+    #     ('VF', escalonador_vf.calcular_turnaround_medio()))
+    # avgs_tempos_em_espera.append(
+    #     ('VF', escalonador_vf.calcular_tempo_em_espera_medio()))
     
-    tarefas = deepcopy(tarefas_originais)
-    # print(list(t.tempos_execucao for t in tarefas))
+    # tarefas = deepcopy(tarefas_originais)
+    # # print(list(t.tempos_execucao for t in tarefas))
 
-    # print("\nSimulando CAV com Escalonamento por visão do futuro (media):\n")
-    escalonador_vfmed = EscalonadorFutureVisionMedia(3)
-    for t in tarefas:
-        escalonador_vfmed.adicionar_tarefa(t)
+    # # print("\nSimulando CAV com Escalonamento por visão do futuro (media):\n")
+    # escalonador_vfmed = EscalonadorFutureVisionMedia(3)
+    # for t in tarefas:
+    #     escalonador_vfmed.adicionar_tarefa(t)
 
-    simulador_vfmed = CAV(id=1)
-    simulador_vfmed.executar_tarefas(escalonador_vfmed)
-    escalonador_vfmed.calcular_e_exibir_metricas()
-    avgs_turnarounds.append(
-        ('VFmed', escalonador_vfmed.calcular_turnaround_medio()))
-    avgs_tempos_em_espera.append(
-        ('VFmed', escalonador_vfmed.calcular_tempo_em_espera_medio()))
+    # simulador_vfmed = CAV(id=1)
+    # simulador_vfmed.executar_tarefas(escalonador_vfmed)
+    # escalonador_vfmed.calcular_e_exibir_metricas()
+    # avgs_turnarounds.append(
+    #     ('VFmed', escalonador_vfmed.calcular_turnaround_medio()))
+    # avgs_tempos_em_espera.append(
+    #     ('VFmed', escalonador_vfmed.calcular_tempo_em_espera_medio()))
     
     
     tarefas = deepcopy(tarefas_originais)
@@ -1271,6 +1327,9 @@ def main():
         ('VFmedintervalo', escalonador_vfmedintervalo.calcular_turnaround_medio()))
     avgs_tempos_em_espera.append(
         ('VFmedintervalo', escalonador_vfmedintervalo.calcular_tempo_em_espera_medio()))
+    avgs_tempo_maximo_esperando.append(
+        ('VFmedintervalo', escalonador_vfmedintervalo.calcular_media_maior_tempo_esperando())
+    )
     
     
     tarefas = deepcopy(tarefas_originais)
@@ -1288,34 +1347,55 @@ def main():
         ('VFmin', escalonador_vfmin.calcular_turnaround_medio()))
     avgs_tempos_em_espera.append(
         ('VFmin', escalonador_vfmin.calcular_tempo_em_espera_medio()))
+    avgs_tempo_maximo_esperando.append(
+        ('VFmin', escalonador_vfmin.calcular_media_maior_tempo_esperando())
+    )
     
-    tarefas = deepcopy(tarefas_originais)
-    # print(list(t.tempos_execucao for t in tarefas))
+    # tarefas = deepcopy(tarefas_originais)
+    # # print(list(t.tempos_execucao for t in tarefas))
 
-    # print("\nSimulando CAV com Escalonamento por visão do futuro (media do intervalo):\n")
-    escalonador_vfmax = EscalonadorFutureVisionMax(3)
-    for t in tarefas:
-        escalonador_vfmax.adicionar_tarefa(t)
+    # # print("\nSimulando CAV com Escalonamento por visão do futuro (media do intervalo):\n")
+    # escalonador_vfmax = EscalonadorFutureVisionMax(3)
+    # for t in tarefas:
+    #     escalonador_vfmax.adicionar_tarefa(t)
 
-    simulador_vfmax = CAV(id=1)
-    simulador_vfmax.executar_tarefas(escalonador_vfmax)
-    escalonador_vfmax.calcular_e_exibir_metricas()
-    avgs_turnarounds.append(
-        ('VFmax', escalonador_vfmax.calcular_turnaround_medio()))
-    avgs_tempos_em_espera.append(
-        ('VFmax', escalonador_vfmax.calcular_tempo_em_espera_medio()))
+    # simulador_vfmax = CAV(id=1)
+    # simulador_vfmax.executar_tarefas(escalonador_vfmax)
+    # escalonador_vfmax.calcular_e_exibir_metricas()
+    # avgs_turnarounds.append(
+    #     ('VFmax', escalonador_vfmax.calcular_turnaround_medio()))
+    # avgs_tempos_em_espera.append(
+    #     ('VFmax', escalonador_vfmax.calcular_tempo_em_espera_medio()))
    
-    with open('turnarounds.csv', 'a') as f:
-        line = ''
-        for avg in avgs_turnarounds:
-            line += f'{avg[1]},' if avg != avgs_turnarounds[-1] else f'{avg[1]}'
-        f.write(f'{len(tarefas)},{line}\n')
+    # with open('turnarounds.csv', 'a') as f:
+    #     line = ''
+    #     for avg in avgs_turnarounds:
+    #         line += f'{avg[1]},' if avg != avgs_turnarounds[-1] else f'{avg[1]}'
+    #     f.write(f'{len(tarefas)},{line}\n')
         
-    with open('tempos_em_espera.csv', 'a') as f:
-        line = ''
-        for avg in avgs_tempos_em_espera:
-            line += f'{avg[1]},' if avg != avgs_tempos_em_espera[-1] else f'{avg[1]}'
-        f.write(f'{len(tarefas)},{line}\n')
+    # with open('tempos_em_espera.csv', 'a') as f:
+    #     line = ''
+    #     for avg in avgs_tempos_em_espera:
+    #         line += f'{avg[1]},' if avg != avgs_tempos_em_espera[-1] else f'{avg[1]}'
+    #     f.write(f'{len(tarefas)},{line}\n')
+    
+    # with open('tempos_maximo_esperando.csv', 'a') as f:
+    #     line = ''
+    #     for avg in avgs_tempo_maximo_esperando:
+    #         line += f'{avg[1]},' if avg != avgs_tempo_maximo_esperando[-1] else f'{avg[1]}'
+    #     f.write(f'{len(tarefas)},{line}\n')
+    
+    # with open('turnarounds_ordem.csv', 'a') as f:
+    #     line = ''
+    #     for avg in avgs_turnarounds:
+    #         line += f'{avg[1]},' if avg != avgs_turnarounds[-1] else f'{avg[1]}'
+    #     f.write(f'{len(tarefas)},{line}\n')
+    
+    # with open('tempos_em_espera_ordem.csv', 'a') as f:
+    #     line = ''
+    #     for avg in avgs_tempos_em_espera:
+    #         line += f'{avg[1]},' if avg != avgs_tempos_em_espera[-1] else f'{avg[1]}'
+    #     f.write(f'{len(tarefas)},{line}\n')
         
     print(len(tarefas))
     print(avgs_turnarounds)
@@ -1330,48 +1410,297 @@ def main():
 if __name__ == "__main__":
     
     # with open('turnarounds.csv', 'w') as f:
-    #     f.write('tarefas,prioridade p,edf,sjf,fifo,rr,prioridade np,ug,vf mediana,vf media,vf media intervalo,vf min,vf max\n')
+    #     f.write('tarefas,FIFO,RR,EDF,PRIORIDADE P, PRIORIDADE NP,SJF,UG,VF MED INTERVALO,VF MIN\n')
     #     f.close()
         
     # with open('tempos_em_espera.csv', 'w') as f:
-    #     f.write('tarefas,prioridade p,edf,sjf,fifo,rr,prioridade np,ug,vf mediana,vf media,vf media intervalo,vf min,vf max\n')
+    #     f.write('tarefas,FIFO,RR,EDF,PRIORIDADE P, PRIORIDADE NP,SJF,UG,VF MED INTERVALO,VF MIN\n')
+    #     f.close()
+    
+    # with open('tempos_maximo_esperando.csv', 'w') as f:
+    #     f.write('tarefas,FIFO,RR,EDF,PRIORIDADE P, PRIORIDADE NP,SJF,UG,VF MED INTERVALO,VF MIN\n')
+    #     f.close()
+    
+    # with open('turnarounds_ordem.csv', 'w') as f:
+    #     f.write('tarefas,FIFO,RR,EDF,PRIORIDADE P, PRIORIDADE NP,SJF,UG,VF MED INTERVALO,VF MIN\n')
+    #     f.close()
+
+    # with open('tempos_em_espera_ordem.csv', 'w') as f:
+    #     f.write('tarefas,FIFO,RR,EDF,PRIORIDADE P, PRIORIDADE NP,SJF,UG,VF MED INTERVALO,VF MIN\n')
     #     f.close()
     
     # for i in range(100):
-    #     main()
+        # in_order_tasks = True
+        # main()
+        # quantidade_tarefas += 1
+    pass
         
-    
+# Lê o CSV
+df = pd.read_csv('turnarounds.csv', header=0)
 
-    # Lê o CSV
-    df = pd.read_csv('turnarounds.csv', header=0)
+# Remove a coluna de identificação se não for numérica
+if not pd.api.types.is_numeric_dtype(df.iloc[:, 0]):
+    df_numeric = df.iloc[:, 1:]
+else:
+    df_numeric = df.iloc[:, 1:]
 
-    # Remove a coluna de identificação se não for numérica (ex: 'tarefas')
-    if not pd.api.types.is_numeric_dtype(df.iloc[:, 0]):
-        df_numeric = df.iloc[:, 1:]
-    else:
-        df_numeric = df.iloc[:, 1:]
+# Calcula médias e desvios padrão
+medias = df_numeric.mean()
+desvios = df_numeric.std()
 
-    # Calcula média e desvio padrão
-    medias = df_numeric.mean()
-    desvios = df_numeric.std()
+# Normaliza para colormap
+norm = mcolors.Normalize(vmin=medias.min(), vmax=medias.max())
+colormap = cm.get_cmap('viridis')
+colors = [colormap(norm(m)) for m in medias]
 
-    # Cria o gráfico
-    plt.figure(figsize=(12, 6))
-    bars = plt.bar(medias.index, medias.values, yerr=desvios.values, capsize=5, color='skyblue', edgecolor='black')
+# Cria a figura
+plt.figure(figsize=(12, 6))
 
-    # Adiciona os valores acima das barras
-    for i, bar in enumerate(bars):
-        altura = bar.get_height()
-        media_val = f"{medias[i]:.2f}"
-        desvio_val = f"±{desvios[i]:.2f}"
-        plt.text(bar.get_x() + bar.get_width()/2, altura + desvios[i] + 10,  # posição acima da barra + erro
-                f"{media_val}\n{desvio_val}", 
-                ha='center', va='bottom', fontsize=9, fontweight='bold')
+# Cria os boxplots
+box = plt.boxplot([df_numeric[col] for col in df_numeric.columns],
+                  patch_artist=True,
+                  labels=df_numeric.columns)
 
-    plt.xticks(rotation=45, ha='right')
-    plt.ylabel('Valor')
-    plt.title('Média e Desvio Padrão por Algoritmo de Escalonamento')
-    plt.tight_layout()
+# Aplica cores
+for patch, color in zip(box['boxes'], colors):
+    patch.set_facecolor(color)
+    patch.set_edgecolor('black')
 
-    # Exibe o gráfico
-    plt.show()
+for whisker in box['whiskers']:
+    whisker.set_color('black')
+
+for cap in box['caps']:
+    cap.set_color('black')
+
+for median in box['medians']:
+    median.set_color('black')
+
+for flier in box['fliers']:
+    flier.set(marker='o', color='black', alpha=0.3)
+
+# Adiciona textos (média ± desvio) acima de cada boxplot
+for i, (label, media, desvio) in enumerate(zip(df_numeric.columns, medias, desvios), start=1):
+    plt.text(i, media + desvio + 200,  # y = um pouco acima da média + desvio
+             f"{media:.2f}\n±{desvio:.2f}",
+             ha='center', va='bottom', fontsize=9, fontweight='bold')
+
+plt.xticks(rotation=45, ha='right')
+plt.ylabel('Turnaround Médio')
+plt.title('Boxplot por turnaround de cada algoritmo (Colorido pela Média - viridis)')
+plt.ylim(top=max(medias + desvios) + 1000)
+plt.tight_layout()
+# plt.show()
+# ----------------------------------------------------------------------------------
+# Lê o CSV
+df = pd.read_csv('tempos_maximo_esperando.csv', header=0)
+
+# Remove a coluna de identificação se não for numérica
+if not pd.api.types.is_numeric_dtype(df.iloc[:, 0]):
+    df_numeric = df.iloc[:, 1:]
+else:
+    df_numeric = df.iloc[:, 1:]
+
+# Calcula médias e desvios padrão
+medias = df_numeric.mean()
+desvios = df_numeric.std()
+
+# Normaliza para colormap
+norm = mcolors.Normalize(vmin=medias.min(), vmax=medias.max())
+colormap = cm.get_cmap('viridis')
+colors = [colormap(norm(m)) for m in medias]
+
+# Cria a figura
+plt.figure(figsize=(12, 6))
+
+# Cria os boxplots
+box = plt.boxplot([df_numeric[col] for col in df_numeric.columns],
+                  patch_artist=True,
+                  labels=df_numeric.columns)
+
+# Aplica cores
+for patch, color in zip(box['boxes'], colors):
+    patch.set_facecolor(color)
+    patch.set_edgecolor('black')
+
+for whisker in box['whiskers']:
+    whisker.set_color('black')
+
+for cap in box['caps']:
+    cap.set_color('black')
+
+for median in box['medians']:
+    median.set_color('black')
+
+for flier in box['fliers']:
+    flier.set(marker='o', color='black', alpha=0.3)
+
+# Adiciona textos (média ± desvio) acima de cada boxplot
+for i, (label, media, desvio) in enumerate(zip(df_numeric.columns, medias, desvios), start=1):
+    plt.text(i, media + desvio + 200,  # y = um pouco acima da média + desvio
+             f"{media:.2f}\n±{desvio:.2f}",
+             ha='center', va='bottom', fontsize=9, fontweight='bold')
+
+plt.xticks(rotation=45, ha='right')
+plt.ylabel('Tempo máximo de espera Médio')
+plt.title('Boxplot por tempo máximo de espera de cada algoritmo (Colorido pela Média - viridis)')
+plt.ylim(top=max(medias + desvios) + 2000)
+plt.tight_layout()
+# plt.show()
+# ----------------------------------------------------------------------------------
+generating_distribution = True
+criar_tarefas()
+generating_distribution = False
+
+# Eixo x: índices de 0 a 59
+x = list(range(len(vetor_duracoes)))
+
+# Plot
+plt.figure(figsize=(12, 6))  # tamanho do gráfico
+plt.bar(x, vetor_duracoes, color='skyblue')
+
+plt.xlabel('Duração')
+plt.ylabel('Quantidade de Tarefas')
+plt.title('Distribuição das durações das tarefas')
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+plt.tight_layout()
+# plt.show()
+# ------------------------------------------------------------------------------
+# Lê o CSV
+df = pd.read_csv("turnarounds_ordem.csv", nrows=100)
+
+# Define a coluna do eixo x (quantidade de tarefas)
+x = df["tarefas"]
+
+# Lista de algoritmos (todas as colunas menos a primeira)
+algoritmos = df.columns[1:]
+
+# Define cores com colormap viridis ou outro
+cmap = plt.get_cmap("tab10")  # pode trocar por 'viridis', 'plasma', etc.
+
+# Cria o gráfico
+plt.figure(figsize=(14, 7))
+
+for i, algoritmo in enumerate(algoritmos):
+    plt.plot(x, df[algoritmo], label=algoritmo,
+             color=cmap(i % 10), linewidth=2)
+
+plt.xlabel("Quantidade de Tarefas")
+plt.ylabel("Turnaround Médio")
+plt.title("Comparação de Algoritmos de Escalonamento")
+plt.legend(title="Algoritmo")
+plt.grid(True, linestyle='--', alpha=0.6)
+plt.tight_layout()
+# plt.show()
+# --------------------------------------------------------------------------------
+# Lê o CSV
+df = pd.read_csv("tempos_em_espera_ordem.csv", nrows=100)
+
+# Define a coluna do eixo x (quantidade de tarefas)
+x = df["tarefas"]
+
+# Lista de algoritmos (todas as colunas menos a primeira)
+algoritmos = df.columns[1:]
+
+# Define cores com colormap viridis ou outro
+cmap = plt.get_cmap("tab10")  # pode trocar por 'viridis', 'plasma', etc.
+
+# Cria o gráfico
+plt.figure(figsize=(14, 7))
+
+for i, algoritmo in enumerate(algoritmos):
+    plt.plot(x, df[algoritmo], label=algoritmo,
+             color=cmap(i % 10), linewidth=2)
+
+plt.xlabel("Quantidade de Tarefas")
+plt.ylabel("Tempo em Espera Médio")
+plt.title("Comparação de Algoritmos de Escalonamento")
+plt.legend(title="Algoritmo")
+plt.grid(True, linestyle='--', alpha=0.6)
+plt.tight_layout()
+# plt.show()
+# ------------------------------------------------------------------------------------------------
+# Lê o CSV
+df = pd.read_csv('turnarounds.csv', header=0)
+
+# Remove a coluna de identificação se não for numérica (ex: 'tarefas')
+if not pd.api.types.is_numeric_dtype(df.iloc[:, 0]):
+    df_numeric = df.iloc[:, 1:]
+else:
+    df_numeric = df.iloc[:, 1:]
+
+# Calcula média e desvio padrão
+medias = df_numeric.mean()
+desvios = df_numeric.std()
+
+# Normaliza as médias para o intervalo [0, 1]
+norm = mcolors.Normalize(vmin=medias.min(), vmax=medias.max())
+# Você pode testar 'viridis', 'coolwarm', 'inferno', etc.
+colormap = cm.get_cmap('viridis')
+colors = colormap(norm(medias.values))
+
+# Cria o gráfico
+plt.figure(figsize=(12, 6))
+bars = plt.bar(medias.index, medias.values,
+               capsize=5, color=colors, edgecolor='black')
+
+# Adiciona os valores acima das barras
+for i, bar in enumerate(bars):
+    altura = bar.get_height()
+    media_val = f"{medias[i]:.2f}"
+    desvio_val = f"±{desvios[i]:.2f}"
+    plt.text(bar.get_x() + bar.get_width()/2, altura + 10,
+             f"{media_val}\n{desvio_val}",
+             ha='center', va='bottom', fontsize=9, fontweight='bold')
+
+plt.xticks(rotation=45, ha='right')
+plt.ylabel('Turnaround Médio')
+plt.title(
+    'Média e Desvio Padrão por Algoritmo de Escalonamento (Colorido por Valor Médio)')
+plt.ylim(top=max(medias) + 500)
+plt.tight_layout()
+
+# Exibe o gráfico
+# plt.show()
+# ---------------------------------------------------------------------------
+# Lê o CSV
+df = pd.read_csv('turnarounds.csv', header=0)
+
+# Remove a coluna de identificação se não for numérica (ex: 'tarefas')
+if not pd.api.types.is_numeric_dtype(df.iloc[:, 0]):
+    df_numeric = df.iloc[:, 1:-3]
+else:
+    df_numeric = df.iloc[:, 1:-3]
+
+# Calcula média e desvio padrão
+medias = df_numeric.mean()
+desvios = df_numeric.std()
+
+# Normaliza as médias para o intervalo [0, 1]
+norm = mcolors.Normalize(vmin=medias.min(), vmax=medias.max())
+# Você pode testar 'viridis', 'coolwarm', 'inferno', etc.
+colormap = cm.get_cmap('viridis')
+colors = colormap(norm(medias.values))
+
+# Cria o gráfico
+plt.figure(figsize=(12, 6))
+bars = plt.bar(medias.index, medias.values,
+               capsize=5, color=colors, edgecolor='black')
+
+# Adiciona os valores acima das barras
+for i, bar in enumerate(bars):
+    altura = bar.get_height()
+    media_val = f"{medias[i]:.2f}"
+    desvio_val = f"±{desvios[i]:.2f}"
+    plt.text(bar.get_x() + bar.get_width()/2, altura + 10,
+             f"{media_val}\n{desvio_val}",
+             ha='center', va='bottom', fontsize=9, fontweight='bold')
+
+plt.xticks(rotation=45, ha='right')
+plt.ylabel('Turnaround Médio')
+plt.title(
+    'Média e Desvio Padrão por Algoritmo de Escalonamento (Colorido por Valor Médio)')
+plt.ylim(top=max(medias) + 500) 
+plt.tight_layout()
+
+# Exibe o gráfico
+plt.show()
